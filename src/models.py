@@ -68,7 +68,7 @@ class SimpleModel(pl.LightningModule):
             if self.FLAGS.grid_type=='NGLOD':
                 self.LODS = [4 * 2**L for L in range(FLAGS.base_lod,FLAGS.base_lod + FLAGS.num_LOD)]
                 self.init_feature_structure()
-            if self.FLAGS.grid_type=='HASH':
+            elif self.FLAGS.grid_type=='HASH':
                 b = np.exp((np.log(self.FLAGS.max_grid_res) - np.log(self.FLAGS.min_grid_res)) / (self.FLAGS.num_LOD-1))
                 self.LODS = [int(1 + np.floor(self.FLAGS.min_grid_res*(b**l))) for l in range(self.FLAGS.num_LOD)]
                 self.init_hash_structure()

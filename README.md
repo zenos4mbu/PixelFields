@@ -1,2 +1,3 @@
-# HyperMLP
-Hypernetwork Multi Layer Perceptron
+# PIXEL FIELDS
+
+Experiments on NGLOD and HASH tables for images

@@ -50,13 +50,13 @@ def bilinear_interpolation(grid, points, grid_type):
             values at the given points.
     """
     # Get the dimensions of the grid
-    grid_shape, feat = grid.shape
-    dimension = math.sqrt(grid_shape) 
+    grid_size, feat = grid.shape
+    dimension = math.sqrt(grid_size) 
     _,N, _ = points.shape
 
     # Get the x and y coordinates of the four nearest points for each input point
-    x1 = torch.floor(points[:,:, 0]*dimension)
-    y1 = torch.floor(points[:,:, 1]*dimension)
+    x1 = torch.floor(points[:,:, 0]*dimension).int()
+    y1 = torch.floor(points[:,:, 1]*dimension).int()
     x2 = (x1 + 1)
     y2 = (y1 + 1)
 
@@ -77,9 +77,13 @@ def bilinear_interpolation(grid, points, grid_type):
         # Interpolate the values for each point
         values = torch.einsum('ab,abc->abc', w1 , grid[(x1+y1*dimension).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(y1*dimension+x2).long()]) \
                 + torch.einsum('ab,abc->abc', w3 , grid[(y2*dimension+ x1).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(y2*dimension+ x2).long()])
-    if grid_type=='HASH':
-        values = torch.einsum('ab,abc->abc', w1 , grid[(x1+y1*dimension).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(y1*dimension+x2).long()]) \
-                + torch.einsum('ab,abc->abc', w3 , grid[(y2*dimension+ x1).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(y2*dimension+ x2).long()])
+    elif grid_type=='HASH':
+        id1 = (x1.int() * PRIMES[0]) ^ (y1.int() * PRIMES[1]) % grid_size
+        id2 = (x2.int() * PRIMES[0]) ^ (y1.int() * PRIMES[1]) % grid_size
+        id3 = (x1.int() * PRIMES[0]) ^ (y2.int() * PRIMES[1]) % grid_size
+        id4 = (x2.int() * PRIMES[0]) ^ (y2.int() * PRIMES[1]) % grid_size
+        values = torch.einsum('ab,abc->abc', w1 , grid[(id1).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(id2).long()]) \
+                + torch.einsum('ab,abc->abc', w3 , grid[(id3).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(id4).long()])
     else:
         print("NOT IMPLEMENTED")
     return values

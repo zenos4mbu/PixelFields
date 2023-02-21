@@ -78,12 +78,17 @@ def bilinear_interpolation(grid, points, grid_type):
         values = torch.einsum('ab,abc->abc', w1 , grid[(x1+y1*dimension).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(y1*dimension+x2).long()]) \
                 + torch.einsum('ab,abc->abc', w3 , grid[(y2*dimension+ x1).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(y2*dimension+ x2).long()])
     elif grid_type=='HASH':
-        id1 = (x1.int() * PRIMES[0]) ^ (y1.int() * PRIMES[1]) % grid_size
-        id2 = (x2.int() * PRIMES[0]) ^ (y1.int() * PRIMES[1]) % grid_size
-        id3 = (x1.int() * PRIMES[0]) ^ (y2.int() * PRIMES[1]) % grid_size
-        id4 = (x2.int() * PRIMES[0]) ^ (y2.int() * PRIMES[1]) % grid_size
-        values = torch.einsum('ab,abc->abc', w1 , grid[(id1).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(id2).long()]) \
-                + torch.einsum('ab,abc->abc', w3 , grid[(id3).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(id4).long()])
+        npts = dimension**2
+        if npts > grid_size:
+            id1 = (x1 * PRIMES[0]).int() ^ (y1 * PRIMES[1]).int() % grid_size
+            id2 = (x2 * PRIMES[0]).int() ^ (y1 * PRIMES[1]).int() % grid_size
+            id3 = (x1 * PRIMES[0]).int() ^ (y2 * PRIMES[1]).int() % grid_size
+            id4 = (x2 * PRIMES[0]).int() ^ (y2 * PRIMES[1]).int() % grid_size
+            values = torch.einsum('ab,abc->abc', w1 , grid[(id1).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(id2).long()]) \
+                    + torch.einsum('ab,abc->abc', w3 , grid[(id3).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(id4).long()])
+        else:
+            values = torch.einsum('ab,abc->abc', w1 , grid[(x1+y1*dimension).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(y1*dimension+x2).long()]) \
+                + torch.einsum('ab,abc->abc', w3 , grid[(y2*dimension+ x1).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(y2*dimension+ x2).long()])
     else:
         print("NOT IMPLEMENTED")
     return values

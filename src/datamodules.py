@@ -31,8 +31,7 @@ def batch_generator(image, batch_size, scale=1.0, shuffle=True):
     return batches#torch.tensor(batches)
 
 def create_grid(h, w, device="cpu"):
-    grid_y, grid_x = torch.meshgrid([torch.linspace(0, 1, steps=h),
-                                     torch.linspace(0, 1, steps=w)])
+    grid_y, grid_x = torch.meshgrid([torch.linspace(0, 1, steps=h), torch.linspace(0, 1, steps=w)])
     grid = torch.stack([grid_y, grid_x], dim=-1)
     return grid.to(device)
 

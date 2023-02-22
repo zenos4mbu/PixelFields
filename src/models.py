@@ -90,9 +90,11 @@ class SimpleModel(pl.LightningModule):
             self.codebook.append(nn.Parameter(fts))
 
     def init_hash_structure(self):
+        self.codebook_size=2 ** self.FLAGS.band_width
         self.codebook = nn.ParameterList([])
         for LOD in self.LODS:
-            fts = torch.zeros(LOD**2, self.FLAGS.feat_dim) #+ self.feature_bias
+            num_pts=LOD**2
+            fts = torch.zeros(min(self.codebook_size, num_pts), self.FLAGS.feat_dim) #+ self.feature_bias
             fts += torch.randn_like(fts) * self.FLAGS.feature_std
             self.codebook.append(nn.Parameter(fts))
 

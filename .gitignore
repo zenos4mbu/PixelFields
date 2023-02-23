@@ -131,3 +131,4 @@ dmypy.json
 
 FIELDSPIXELS/
 wandb/
+lightning_logs/

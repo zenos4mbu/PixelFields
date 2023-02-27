@@ -72,10 +72,10 @@ def bilinear_interpolation(res, grid, points, grid_type):
     elif grid_type=='HASH':
         npts = res**2
         if npts > grid_size:
-            id1 = (x1 * PRIMES[0]).int() ^ (y1 * PRIMES[1]).int() % (grid_size-1)
-            id2 = (x2 * PRIMES[0]).int() ^ (y1 * PRIMES[1]).int() % (grid_size-1)
-            id3 = (x1 * PRIMES[0]).int() ^ (y2 * PRIMES[1]).int() % (grid_size-1)
-            id4 = (x2 * PRIMES[0]).int() ^ (y2 * PRIMES[1]).int() % (grid_size-1)
+            id1 = ((x1 * PRIMES[0]).int() ^ (y1 * PRIMES[1]).int()) % (grid_size-1)
+            id2 = ((x2 * PRIMES[0]).int() ^ (y1 * PRIMES[1]).int()) % (grid_size-1)
+            id3 = ((x1 * PRIMES[0]).int() ^ (y2 * PRIMES[1]).int()) % (grid_size-1)
+            id4 = ((x2 * PRIMES[0]).int() ^ (y2 * PRIMES[1]).int()) % (grid_size-1)
             values = torch.einsum('ab,abc->abc', w1 , grid[(id1).long()]) + torch.einsum('ab,abc->abc', w2 , grid[(id2).long()]) \
                     + torch.einsum('ab,abc->abc', w3 , grid[(id3).long()]) + torch.einsum('ab,abc->abc', w4 , grid[(id4).long()])
         else:

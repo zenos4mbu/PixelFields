@@ -22,13 +22,13 @@ PRIMES = [1,265443567,805459861]
 #     features = nn.Parameter(torch.randn(width, height, feat_dim))
 #     return features
 
-def get_features(pts, grid, resolutions, grid_type):
-    _,feat_dim =grid[0].shape
+def get_features(pts, grid, grid_type):
+    _,feat_dim =grid.codebook[0].shape
     batch,_,_  = pts.shape
     feats = []
     #Iterate in every level of detail resolution
-    for i, res in enumerate(resolutions):
-        features = bilinear_interpolation(res, grid[i], pts, grid_type)
+    for i, res in enumerate(grid.LODS):
+        features = bilinear_interpolation(res, grid.codebook[i], pts, grid_type)
         feats.append((torch.unsqueeze(features, dim =-1)))
     ficiur = torch.cat(feats, -1)
     return ficiur.sum(-1)

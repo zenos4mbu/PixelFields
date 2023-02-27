@@ -15,6 +15,7 @@ from absl import app
 from absl import flags
 # from modules import batch_generator
 FLAGS = flags.FLAGS
+import wandb
 
 from datamodules import ImageDataModule
 
@@ -31,13 +32,14 @@ def init_all():
 
 def main(argv):
     init_all()
-    # wandb_logger = WandbLogger(project="PixelFields", name=FLAGS.exp_name)
-    # wandb_logger.experiment.config.update(FLAGS)
+    wandb_logger = WandbLogger(project="PixelFields", name=FLAGS.exp_name)
+    wandb_logger.experiment.config.update(FLAGS)
 
     dm = ImageDataModule(FLAGS)
 
     model = SimpleModel(FLAGS)
-    # wandb_logger.watch(model, log='all')
+
+    wandb_logger.watch(model, log="all", log_freq=100)
 
     checkpoint_dir = os.path.join(os.getcwd(), FLAGS.load_checkpoint_dir)
 
@@ -46,7 +48,7 @@ def main(argv):
         strategy='dp', 
         resume_from_checkpoint=checkpoint_dir if FLAGS.resume_training else None, 
         max_epochs=FLAGS.max_epochs, 
-        # logger=wandb_logger,
+        logger=wandb_logger,
         # gradient_clip_val=0.5,
         precision=16,
     )

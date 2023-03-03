@@ -57,6 +57,9 @@ class ImageDataset(Dataset):
 
         # batches = batch_generator(image, self.batch_size, shuffle=True)
 
+        # grid = cv2.bitwise_and(grid,grid,mask = mask)
+        # grid = grid*mask
+
         return grid, torch.tensor(image, dtype=torch.float32)#, batches
 
     def __len__(self):

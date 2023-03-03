@@ -50,7 +50,7 @@ def main(argv):
         max_epochs=FLAGS.max_epochs, 
         logger=wandb_logger,
         # gradient_clip_val=0.5,
-        precision=16,
+        precision=32,
     )
 
     trainer.fit(model, dm)

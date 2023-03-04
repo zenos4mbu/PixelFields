@@ -6,6 +6,7 @@ flags.DEFINE_string('exp_name', 'SINGLE_sweep', 'Experiment name.')
 flags.DEFINE_integer('batch_size', 1, 'Batch size.')
 flags.DEFINE_string('grid_type', "NGLOD", 'type of grid.')
 flags.DEFINE_string('image_path', "./input/lena.jpg", 'Image path.')
+flags.DEFINE_string('multiscale_type', "sum", 'How to aggregate features ad different lods.')
 flags.DEFINE_integer('num_LOD', 3, 'Levels of detail.')
 flags.DEFINE_integer('image_size', 200, 'Input images size.')
 flags.DEFINE_integer('n_channels', 3, 'Number of image channels.')
@@ -28,6 +29,8 @@ flags.DEFINE_string('activation', 'RELU', 'RELU/SIN.')
 
 flags.DEFINE_boolean('display', False,
                      'Display images during training.')
+flags.DEFINE_boolean('freeze_nn', False,
+                     'Freeze Neural Network.')
 flags.DEFINE_boolean('visualize_collisions', False,
                      'Display collisions during training.')
 

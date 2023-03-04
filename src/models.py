@@ -15,7 +15,7 @@ from einops.layers.torch import Rearrange, Reduce
 from einops import rearrange, repeat, reduce
 import wandb
 
-from modules import get_features
+from modules import get_features, update_collisions
 
 import cv2
 
@@ -85,10 +85,14 @@ class SimpleModel(pl.LightningModule):
         super().__init__()
         self.FLAGS=FLAGS        
         self.criterion = nn.MSELoss()
+        if self.FLAGS.multiscale_type == "cat":
+            feat_dim = self.FLAGS.feat_dim * self.FLAGS.num_LOD
+        elif self.FLAGS.multiscale_type == "sum":
+            feat_dim = self.FLAGS.feat_dim
         # self.B_gauss = torch.randn((self.FLAGS.mapping_size, 2)).cuda() * self.FLAGS.mapping_multiplier
         self.activations = {"RELU": nn.ReLU(), "SIN": Sine()}
         self.simplemlp = nn.Sequential(
-            nn.Linear(FLAGS.feat_dim, FLAGS.hidden_dim),
+            nn.Linear(feat_dim, FLAGS.hidden_dim),
             self.activations[self.FLAGS.activation],
             # nn.Linear(256, 256),
             # self.activations[self.FLAGS.activation],
@@ -135,6 +139,16 @@ class SimpleModel(pl.LightningModule):
         masking_points = False
         b,h,w,c = image.shape
 
+        #compute the locations in which image is not black
+
+        mask = (image.sum(-1)/3) > 0.2
+
+        if self.FLAGS.visualize_collisions:
+            self.im_points = pos[mask, :].unsqueeze(0)
+
+
+        image = image*(mask.unsqueeze(-1))
+
 
         if masking_points:
             mask = (image.sum(-1)/3) > 0.2
@@ -164,7 +178,7 @@ class SimpleModel(pl.LightningModule):
             pos = rearrange(pos, 'a h w c -> a (h w) c')
 
         if self.FLAGS.use_grid:
-            features = get_features(pos, self.grid, self.FLAGS.grid_type, self.FLAGS.visualize_collisions)
+            features = get_features(pos, self.grid, self.FLAGS)
             x = self.forward(features)
         else:
             x = self.forward(pos)
@@ -211,17 +225,29 @@ class SimpleModel(pl.LightningModule):
 
         ## PLOT OF CODEBOOK GRADIENTS
 
+        if self.FLAGS.visualize_collisions:
+            update_collisions(self.im_points, self.grid, self.FLAGS)
 
-        if self.trainer.current_epoch > 0 and self.trainer.global_step % 1==0:  # don't make the tf file huge
+                
+
+
+        if self.trainer.current_epoch > 0 and self.trainer.global_step % 1==0 and self.FLAGS.visualize_collisions:  # don't make the tf file huge
             for i,code in enumerate(self.grid.codebook):
                 if(self.FLAGS.display):
                     grad_list = self.grid.codebook[i].grad[:,0].tolist()
                     if self.FLAGS.visualize_collisions:
-                        # normalize grad list from -1 to +1
-                        grad_list = (grad_list - np.min(grad_list)) / (np.max(grad_list) - np.min(grad_list))
+                        # # normalize grad list from -1 to +1
+                        # grad_list = (grad_list - np.min(grad_list)) / (np.max(grad_list) - np.min(grad_list))
 
-                        # nomralize grad list
+                        # # nomralize grad list
+                        # grad_list = np.abs(grad_list)
+                        
+                        #get absolute value of gradlist
                         grad_list = np.abs(grad_list)
+
+                        #normalize grad list from 0 to 1
+                        grad_list = grad_list/grad_list.max()
+
                         # normalize collision table
                         self.grid.collision_list[i] = self.grid.collision_list[i]/self.grid.collision_list[i].max()
                         collision_table = self.grid.collision_list[i].tolist()
@@ -238,7 +264,7 @@ class SimpleModel(pl.LightningModule):
                         plt.plot(grad_list)
                         plt.title( "Codebook {} gradients".format(i))
                         plt.show()
-        #         # self.logger.experiment.add_histogram(f'codebook{i}_grad', code.grad, self.trainer.global_step)
+                # self.logger.experiment.add_histogram(f'codebook{i}_grad', code.grad, self.trainer.global_step)
                 # wandb.log({'codebook{i}': wandb.plot.histogram(table, "gradients")})
 
         ## PLOT OF GRADIENTS IN IMAGE SPACE
@@ -251,7 +277,7 @@ class SimpleModel(pl.LightningModule):
         positions = positions.to(torch.device('cuda'))
         positions = torch.unsqueeze(positions, 0)
         if self.FLAGS.use_grid:
-            gradients = get_features(positions, self.grid, self.FLAGS.grid_type, only_grad=True)
+            gradients = get_features(positions, self.grid, self.FLAGS, only_grad=True)
             gradients = rearrange(gradients, 'a (h w) c -> a h w c', h = h, w = w)
             gradients = gradients.sum(dim=-1)
 
@@ -274,7 +300,10 @@ class SimpleModel(pl.LightningModule):
     def configure_optimizers(self):
         grid_params = []
         other_params = []
-
+        
+        if self.FLAGS.freeze_nn:
+            for param in self.simplemlp.parameters():
+                param.requires_grad = False
         if self.FLAGS.use_grid:
             grid_params = list(self.grid.parameters())
         
@@ -283,24 +312,25 @@ class SimpleModel(pl.LightningModule):
 
         params = []
         params.append({'params': grid_params, 'lr': self.FLAGS.learning_rate*self.FLAGS.grid_lr_factor})
-        params.append({'params': other_params, 'lr': self.FLAGS.learning_rate})
+        params.append({'params': other_params, 'lr': self.FLAGS.learning_rate, "weight_decay": self.FLAGS.weight_decay})
 
         
             
         self.optimizer = torch.optim.Adam(
-            params
+            params,
+            eps=1e-15,
             # weight_decay=self.FLAGS.weight_decay,
         )
         # lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
         #     self.optimizer, T_max=10, eta_min=self.FLAGS.learning_rate / 50
         # )
 
-        lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, 
-            mode = "min",
-            factor=0.1,
-            patience=self.FLAGS.patience
-        )
+        # lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #     self.optimizer, 
+        #     mode = "min",
+        #     factor=0.1,
+        #     patience=self.FLAGS.patience
+        # )
 
         # lr_scheduler = torch.optim.lr_scheduler.CyclicLR(
         #     self.optimizer, 
@@ -309,4 +339,4 @@ class SimpleModel(pl.LightningModule):
         #     cycle_momentum=False,
         #     step_size_up=20)
 
-        return {'optimizer': self.optimizer, 'lr_scheduler': lr_scheduler, 'monitor': "Training/loss"}
+        return {'optimizer': self.optimizer}#, 'lr_scheduler': lr_scheduler, 'monitor': "Training/loss"}
